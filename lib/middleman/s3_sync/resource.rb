@@ -62,13 +62,18 @@ module Middleman
       alias :attributes :to_h
 
       def update!
-        local_content { |body|
-          say_status "#{ANSI.blue{"Updating"}} #{remote_path}#{ gzipped ? ANSI.white {' (gzipped)'} : ''}"
-          s3_resource.merge_attributes(to_h)
-          s3_resource.body = body
+        begin 
+          local_content { |body|
+            say_status "#{ANSI.blue{"Updating"}} #{remote_path}#{ gzipped ? ANSI.white {' (gzipped)'} : ''}"
+            s3_resource.merge_attributes(to_h)
+            s3_resource.body = body
 
-          s3_resource.save unless options.dry_run
-        }
+            s3_resource.save unless options.dry_run
+          }
+        rescue Excon::Error::Forbidden
+          say_status "#{ANSI.red{"Forbidden"}} #{remote_path} - Retrying"
+          update!
+        end
       end
 
       def local_path
